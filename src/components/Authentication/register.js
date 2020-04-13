@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Grid, Form, Segment, Button, Header, Message, Icon } from 'semantic-ui-react';
 import { Link } from 'react-router-dom';
+import md5 from 'md5';
 import firebase from '../../firebase';
 import './register.css';
 
@@ -11,6 +12,7 @@ export const Register = () => {
 		password: '',
 		passwordConfirmation: '',
 	});
+	const [userRef] = useState(firebase.database().ref('users'));
 	const [error, setError] = useState('');
 	const [loading, setLoading] = useState(false);
 
@@ -42,6 +44,13 @@ export const Register = () => {
 		return true;
 	};
 
+	const saveUser = createdUser => {
+		return userRef.child(createdUser.user.uid).set({
+			name: createdUser.user.displayName,
+			avatar: createdUser.user.photoURL,
+		});
+	};
+
 	const handleSubmit = event => {
 		event.preventDefault();
 		if (isFormValid()) {
@@ -49,9 +58,18 @@ export const Register = () => {
 			setLoading(true);
 			firebase
 				.auth()
-				.createUserWithEmailAndPassword(user.email, user.username)
+				.createUserWithEmailAndPassword(user.email, user.password)
 				.then(createdUser => {
 					console.log(createdUser);
+					createdUser.user
+						.updateProfile({
+							displayName: user.username,
+							photoURL: `https://www.gravatar.com/avatar/${md5(user.email)}?d=retro`,
+						})
+						.then(() => {
+							saveUser(createdUser).then(() => console.log('user Saved'));
+						});
+
 					setLoading(false);
 				})
 				.catch(err => {
@@ -62,6 +80,7 @@ export const Register = () => {
 	};
 
 	const handleChange = event => {
+		console.log('firebase', firebase);
 		const newEntry = {
 			[event.target.name]: event.target.value,
 		};
